@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>PDF Viewer</title>
+	<style>
+		#pdf-container {
+			width: 21cm;
+			/* A4 width */
+			height: 29cm;
+			/* A4 height */
+			border: 1px solid #ccc;
+			margin: 10px auto;
+			position: relative;
+		}
+
+		.container {
+			max-width: 1200px;
+			margin: 0 auto;
+			padding: 20px;
+			display: flex;
+			flex-direction: column;
+			align-items: center;
+			position: relative;
+		}
+
+		.input-group {
+			margin-bottom: 20px;
+			display: flex;
+			gap: 10px;
+			position: fixed;
+			top: 20px;
+			right: 20px;
+			z-index: 1000;
+		}
+
+		canvas {
+			width: 21cm !important;
+			height: 29cm !important;
+			image-rendering: -webkit-optimize-contrast;
+			image-rendering: crisp-edges;
+		}
+
+		button {
+			padding: 8px 16px;
+			background-color: #4CAF50;
+			color: white;
+			border: none;
+			border-radius: 4px;
+			cursor: pointer;
+		}
+
+		button:hover {
+			background-color: #45a049;
+		}
+
+		select {
+			padding: 5px;
+			border-radius: 4px;
+			border: 1px solid #ccc;
+			font-family: Arial, sans-serif;
+			font-size: 14px;
+		}
+
+		.name_amil {
+			position: absolute;
+			top: 210px;
+			left: 238px;
+			font-size: 12pt;
+			font-weight: bold;
+			border: 0;
+			background: transparent;
+			text-transform: uppercase;
+			width: 250px;
+		}
+
+		#overall {
+			position: absolute;
+    top: 959px;
+    left: 660px;
+    font-size: 12pt;
+    font-weight: bold;
+    border: 0;
+    background: transparent;
+    text-transform: uppercase;
+    width: 107px;
+    text-align: right;
+    font-family: arial;
+		}
+
+		.marked {
+			position: absolute;
+			left: 743px;
+			height: 29px;
+			display: none;
+		}
+
+		.marked-7 {
+			display: block;
+			top: 218px;
+		}
+
+		.marked-10 {
+			display: block;
+			top: 236px;
+		}
+
+		.marked-15 {
+			display: block;
+			top: 254px;
+		}
+
+		.marked-25 {
+			display: block;
+			top: 272px;
+		}
+
+		/* Table Styles */
+		table {
+			position: absolute;
+			top: 384px;
+			left: 64px;
+			border-collapse: collapse;
+			width: auto;
+			font-family: Arial, sans-serif;
+		}
+
+		td {
+			border: 0px solid #000;
+			height: 22px;
+			padding: 3px 0px 0 6px;
+			font-size: 10pt;
+		}
+
+		/* Different column widths */
+		td:nth-child(1) {
+			width: 41px;
+		}
+
+		/* No */
+		td:nth-child(2) {
+			width: 79px;
+		}
+
+		/* No Resit */
+		td:nth-child(3) {
+			width: 70px;
+		}
+
+		/* Tarikh */
+		td:nth-child(4) {
+			width: 62px;
+		}
+
+		/* Nama */
+		td:nth-child(5) {
+			width: 74px;
+			text-align: center;
+		}
+
+		/* No KP */
+		td:nth-child(6) {
+			width: 72px;
+		}
+
+		/* Jumlah */
+		td:nth-child(7) {
+			width: 79px;
+		}
+
+		/* Bank In */
+		td:nth-child(8) {
+			width: 70px;
+			text-align: center;
+		}
+
+		/* Jumlah */
+		td:nth-child(9) {
+			width: 102px;
+			text-align: right;
+			padding-right: 5px;
+		}
+
+		/* Baki */
+
+		@media print {
+			@page {
+				size: A4;
+				margin: 0;
+				padding: 0;
+			}
+
+			body * {
+				visibility: hidden;
+			}
+
+			#pdf-container,
+			#pdf-container * {
+				visibility: visible;
+			}
+
+			#pdf-container {
+				position: absolute;
+				left: 0;
+				top: 0;
+				border: none;
+				margin: 0;
+				width: 21cm;
+				height: 29cm;
+			}
+
+			canvas {
+				width: 21cm !important;
+				height: 29cm !important;
+			}
+		}
+	</style>
+</head>
+
+<body>
+	<div class="container">
+		<div class="input-group">
+			<select id="amilName">
+				<option value="">Pilih Amil</option>
+			</select>
+			<select id="cuponType">
+				<option value="">Pilih Jenis</option>
+			</select>
+			<button onclick="printPDF()">Print PDF</button>
+		</div>
+		<div id="pdf-container">
+			<label for="name_amil" id="overall">0.00</label>
+			<input type="text" name="" value="" class="name_amil" readonly>
+			<img src="marked.png" alt="" id="marked" class="marked">
+			<table class="table cupons"></table>
+		</div>
+	</div>
+
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+	<script>
+		// Set worker path for PDF.js
+		pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+		let currentPDF = null;
+		let amilData = null;
+
+		// Format currency to 2 decimal places without RM symbol
+		function formatCurrency(amount) {
+			return new Intl.NumberFormat('ms-MY', {
+				// style: 'currency',
+				// currency: 'MYR',
+				minimumFractionDigits: 2,
+				maximumFractionDigits: 2
+			}).format(amount);
+		}
+
+		// Pad number with zeros
+		function padNumber(num, size = 6) {
+			return num.toString().padStart(size, '0');
+		}
+
+		// Load default PDF and JSON when page loads
+		window.addEventListener('DOMContentLoaded', function () {
+			loadDefaultPDF().then(() => {
+				setTimeout(loadAmilData, 500);
+			});
+		});
+
+		// Function to load amil JSON data
+		async function loadAmilData() {
+			try {
+				const response = await fetch('amil.json');
+				amilData = await response.json();
+				setupAmilDropdown();
+				// Remove automatic processing on load
+				// processAmilData();
+			} catch (error) {
+				console.error('Error loading amil data:', error);
+			}
+		}
+
+		// Setup amil dropdown
+		function setupAmilDropdown() {
+			const amilSelect = document.getElementById('amilName');
+			const typeSelect = document.getElementById('cuponType');
+			
+			amilSelect.innerHTML = '<option value="">Pilih Amil</option>';
+			typeSelect.innerHTML = '<option value="">Pilih Kupon</option>';
+
+			// Get unique cupon types from all amil data
+			const cuponTypes = new Set();
+			amilData.forEach(amil => {
+				Object.keys(amil).forEach(key => {
+					if (key !== 'name' && !isNaN(key)) {
+						cuponTypes.add(parseInt(key));
+					}
+				});
+			});
+
+			// Add amil options
+			amilData.forEach((amil, index) => {
+				const amilOption = document.createElement('option');
+				amilOption.value = index;
+				amilOption.textContent = amil.name;
+				amilSelect.appendChild(amilOption);
+			});
+
+			// Add cupon type options
+			Array.from(cuponTypes).sort((a, b) => a - b).forEach(type => {
+				const typeOption = document.createElement('option');
+				typeOption.value = type;
+				typeOption.textContent = type;
+				typeSelect.appendChild(typeOption);
+			});
+
+			// Add event listeners
+			amilSelect.addEventListener('change', processAmilData);
+			document.getElementById('cuponType').addEventListener('change', processAmilData);
+		}
+
+		// Process the amil data
+		function processAmilData() {
+			if (!amilData || !amilData.length) return;
+
+			const amilSelect = document.getElementById('amilName');
+			const typeSelect = document.getElementById('cuponType');
+			const nameInput = document.querySelector('.name_amil');
+			const cuponInput = document.querySelector('.cupons');
+			const markedImg = document.getElementById('marked');
+
+			if (!nameInput || !cuponInput || !markedImg) return;
+
+			// Only process if both amil and type are selected
+			if (amilSelect.value === '' || typeSelect.value === '') {
+				nameInput.value = '';
+				cuponInput.innerHTML = '';
+				markedImg.className = 'marked'; // Reset to base class
+				return;
+			}
+
+			const selectedAmilIndex = parseInt(amilSelect.value);
+			const selectedType = typeSelect.value;
+			const amil = amilData[selectedAmilIndex];
+
+			nameInput.value = amil.name;
+
+			// Update marked image class
+			markedImg.className = `marked marked-${selectedType}`;
+
+			// Process receipts based on selected type
+			if (amil[selectedType]) {
+				let tr = '';
+				let overall = 0;
+				for (const [receiptNo, range] of Object.entries(amil[selectedType])) {
+					let from = '';
+					let to = '';
+					let total = '';
+					let from1 = '';
+					let to1 = '';
+					let total1 = '';
+					let amount = 0;
+
+					if (range[0] === 0) {
+						from1 = padNumber(range[1]);
+						to1 = padNumber((from1 * 1) + 49);
+						total1 = 50;
+					} else if (range[1] === 0) {
+						from = padNumber(range[0]);
+						to = padNumber((from * 1) + 49);
+						total = 50;
+						amount = total * parseInt(selectedType);
+					} else {
+						from = padNumber(range[0]);
+						to = padNumber(range[1]);
+						total = (range[1]*1) - (range[0]*1)+1;
+						amount = total * parseInt(selectedType);
+
+						from1 = padNumber((range[1] * 1) + 1);
+						to1 = padNumber((from1 * 1) + (49-total));
+						total1 = (50-total);
+					}
+
+					tr += `<tr>
+						<td></td>
+						<td>${padNumber(receiptNo)}</td>
+						<td>${from}</td>
+						<td>${to}</td>
+						<td>${total}</td>
+						<td>${from1}</td>
+						<td>${to1}</td>
+						<td>${total1}</td>
+						<td>${amount > 0 ? formatCurrency(amount) : ''}</td>
+					</tr>`;
+					overall += amount;
+				}
+				cuponInput.innerHTML = tr;
+				document.getElementById('overall').textContent = formatCurrency(overall);
+			} else {
+				cuponInput.innerHTML = '';
+			}
+		}
+
+		// Function to load the default PDF
+		async function loadDefaultPDF() {
+			try {
+				const response = await fetch('default.pdf');
+				const pdfData = new Uint8Array(await response.arrayBuffer());
+				loadPDF(pdfData);
+			} catch (error) {
+				console.error('Error loading default PDF:', error);
+			}
+		}
+
+		function loadPDF(pdfData) {
+			const container = document.getElementById('pdf-container');
+			const existingElements = container.innerHTML; // Save existing elements
+			container.innerHTML = ''; // Clear previous content
+
+			pdfjsLib.getDocument({ data: pdfData }).promise.then(function (pdf) {
+				currentPDF = pdf;
+				// Load the first page
+				pdf.getPage(1).then(function (page) {
+					// Increase scale for sharper rendering
+					const scale = 2.5;
+					const viewport = page.getViewport({ scale: scale });
+
+					// Create canvas with higher pixel density
+					const canvas = document.createElement('canvas');
+					const context = canvas.getContext('2d', { alpha: false });
+
+					// Set actual dimensions larger for better quality
+					canvas.height = viewport.height;
+					canvas.width = viewport.width;
+
+					// Enable image smoothing for better text quality
+					context.imageSmoothingEnabled = true;
+					context.imageSmoothingQuality = 'high';
+
+					// Insert canvas as first child
+					if (container.firstChild) {
+						container.insertBefore(canvas, container.firstChild);
+					} else {
+						container.appendChild(canvas);
+					}
+
+					// Restore the existing elements after canvas
+					const tempDiv = document.createElement('div');
+					tempDiv.innerHTML = existingElements;
+					while (tempDiv.firstChild) {
+						if (tempDiv.firstChild.tagName !== 'CANVAS') {
+							container.appendChild(tempDiv.firstChild);
+						} else {
+							tempDiv.removeChild(tempDiv.firstChild);
+						}
+					}
+
+					// Render PDF page with higher quality settings
+					const renderContext = {
+						canvasContext: context,
+						viewport: viewport,
+						enableWebGL: true,
+						renderInteractiveForms: true
+					};
+					page.render(renderContext);
+				});
+			});
+		}
+
+		function printPDF() {
+			if (currentPDF) {
+				window.print();
+			} else {
+				alert('Please wait for PDF to load');
+			}
+		}
+	</script>
+</body>
+
+</html>

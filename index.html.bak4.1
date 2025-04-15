@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Sistem Resit Zakat</title>
+	<style>
+		.container {
+			max-width: 1200px;
+			margin: 0 auto;
+			padding: 20px;
+			display: flex;
+			flex-direction: column;
+			align-items: center;
+			position: relative;
+		}
+
+		.input-group {
+			margin-bottom: 20px;
+			display: flex;
+			gap: 10px;
+			position: fixed;
+			top: 20px;
+			right: 20px;
+			z-index: 1000;
+		}
+
+		.pdf-pages {
+			display: flex;
+			flex-direction: column;
+			gap: 20px;
+		}
+
+		.pdf-container {
+			width: 21cm;
+			height: 29cm;
+			border: 1px solid #ccc;
+			position: relative;
+			background: white;
+		}
+
+		canvas {
+			width: 21cm !important;
+			height: 29cm !important;
+			image-rendering: -webkit-optimize-contrast;
+			image-rendering: crisp-edges;
+		}
+
+		button {
+			padding: 8px 16px;
+			background-color: #4CAF50;
+			color: white;
+			border: none;
+			border-radius: 4px;
+			cursor: pointer;
+		}
+
+		button:hover {
+			background-color: #45a049;
+		}
+
+		select {
+			padding: 5px;
+			border-radius: 4px;
+			border: 1px solid #ccc;
+			font-family: Arial, sans-serif;
+			font-size: 14px;
+		}
+
+		.name_amil {
+			position: absolute;
+			top: 210px;
+			left: 238px;
+			font-size: 12pt;
+			font-weight: bold;
+			border: 0;
+			background: transparent;
+			text-transform: uppercase;
+			width: 250px;
+		}
+
+		#overall {
+			position: absolute;
+			top: 959px;
+			left: 660px;
+			font-size: 12pt;
+			font-weight: bold;
+			border: 0;
+			background: transparent;
+			text-transform: uppercase;
+			width: 107px;
+			text-align: right;
+			font-family: arial;
+		}
+
+		.overall {
+			position: absolute;
+			top: 959px;
+			left: 660px;
+			font-size: 12pt;
+			font-weight: bold;
+			border: 0;
+			background: transparent;
+			text-transform: uppercase;
+			width: 107px;
+			text-align: right;
+			font-family: arial;
+		}
+
+		.marked {
+			position: absolute;
+			left: 743px;
+			height: 29px;
+			display: none;
+		}
+
+		/* Marked positions for different coupon types */
+		.marked-7 {
+			top: 219px;
+			display: block;
+		}
+
+		.marked-10 {
+			top: 236px;
+			display: block;
+		}
+
+		.marked-15 {
+			top: 255px;
+			display: block;
+		}
+
+		.marked-25 {
+			top: 272px;
+			display: block;
+		}
+
+		/* Table Styles */
+		table {
+			position: absolute;
+			top: 384px;
+			left: 64px;
+			border-collapse: collapse;
+			width: auto;
+			font-family: Arial, sans-serif;
+		}
+
+		td {
+			border: 0px solid #000;
+			height: 22px;
+			padding: 3px 0px 0 6px;
+			font-size: 10pt;
+		}
+
+		/* Different column widths */
+		td:nth-child(1) {
+			width: 41px;
+			text-align: center;
+		}
+
+		/* No */
+		td:nth-child(2) {
+			width: 79px;
+		}
+
+		/* No Resit */
+		td:nth-child(3) {
+			width: 70px;
+		}
+
+		/* From */
+		td:nth-child(4) {
+			width: 62px;
+		}
+
+		/* To */
+		td:nth-child(5) {
+			width: 74px;
+			text-align: center;
+		}
+
+		/* Total */
+		td:nth-child(6) {
+			width: 72px;
+		}
+
+		/* From1 */
+		td:nth-child(7) {
+			width: 79px;
+		}
+
+		/* To1 */
+		td:nth-child(8) {
+			width: 70px;
+			text-align: center;
+		}
+
+		/* Total1 */
+		td:nth-child(9) {
+			width: 102px;
+			text-align: right;
+			padding-right: 5px;
+		}
+
+		/* Amount */
+
+		tr:nth-child(6) td {
+			padding-top: 1px;
+		}
+
+		tr:nth-child(10) td {
+			padding-top: 2px;
+		}
+
+		@media print {
+			@page {
+				size: A4;
+				margin: 0;
+				padding: 0;
+			}
+
+			.input-group {
+				display: none;
+			}
+
+			.container {
+				padding: 0;
+			}
+
+			.pdf-container {
+				border: none;
+				page-break-after: always;
+			}
+		}
+	</style>
+</head>
+
+<body>
+	<div class="container">
+		<div class="input-group">
+			<select id="amilName">
+				<option value="">Pilih Amil</option>
+			</select>
+			<button onclick="printPDF()">Print</button>
+		</div>
+		<div id="pdf-pages" class="pdf-pages">
+			<!-- PDF containers will be added here dynamically -->
+		</div>
+	</div>
+
+	<script>
+		// Embed JSON data directly
+		const amilData = [
+			{
+				"name": "Khairuddin Bin Ibrahim",
+				"7": {
+					"D13427": [671301, 671319],
+					"D13428": [0, 671351]
+				},
+				"10": {
+					"A13427": [0, 671301],
+					"A13428": [671351, 671373]
+				}
+			},
+			{
+				"name": "Hassan Bin Haji Hashim",
+				"7": {
+					"D13406": [670251, 670273],
+					"D13407": [670301, 670332],
+					"D13408": [0, 670351],
+					"D13409": [0, 670401],
+					"D13410": [0, 670451]
+				},
+				"10": {
+					"A13406": [670251, 0],
+					"A13407": [670301, 0],
+					"A13408": [670351, 0],
+					"A13409": [0, 670401, 670432],
+					"A13410": [0, 670451]
+				},
+				"15": {
+					"B01410": ["070451", "070473"]
+				},
+				"25": {
+					"C01407": ["070251", "070266"]
+				}
+			},
+			{
+				"name": "Zakaria Bin Abdul",
+				"7": {
+					"D13411": [670501, 0],
+					"D13412": [670551, 0],
+					"D13413": [670601, 0],
+					"D13414": [670651, 0],
+					"D13415": [670701, 0],
+					"D13416": [670751, 0],
+					"D13417": [670801, 0],
+					"D13418": [670851, 0],
+					"D13419": [670901, 0],
+					"D13420": [670951, 0]
+				},
+				"10": {
+					"A13411": [670501, 0],
+					"A13412": [670551, 0],
+					"A13413": [670601, 0],
+					"A13414": [670651, 0],
+					"A13415": [670701, 0],
+					"A13416": [670751, 0],
+					"A13417": [0, 670801],
+					"A13418": [670851, 670887],
+					"A13419": [0, 670901],
+					"A13420": [670951, 0]
+				},
+				"15": {
+					"B01411": ["070501", "070527"]
+				},
+				"25": {
+					"C01407": ["070301", "070303"]
+				}
+			},
+			{
+				"name": "Abdullah Bin Othman",
+				"7": {
+					"D13431": [671501, 0],
+					"D13432": [671551, 671561],
+					"D13433": [0, 671601],
+					"D13434": [0, 671651],
+					"D13435": [0, 671701],
+					"D13436": [0, 671751]
+				},
+				"10": {
+					"A13431": [671501, 0],
+					"A13432": [671551, 671574],
+					"A13433": [0, 671601],
+					"A13434": [0, 671651],
+					"A13435": [0, 671701],
+					"A13436": [0, 671751]
+				},
+				"25": {
+					"C01409": ["070401", "070409"]
+				}
+			},
+			{
+				"name": "Ahmad Sha'rani",
+				"7": {
+					"D13443": [672101, 0],
+					"D13444": [672151, 672161],
+					"D13445": [0, 672201],
+					"D13446": [0, 672251],
+					"D13447": [0, 672301],
+					"D13448": [0, 672351]
+				},
+				"10": {
+					"A13443": [672101, 0],
+					"A13444": [672151, 0],
+					"A13445": [672201, 0],
+					"A13446": [672251, 672272],
+					"A13447": [0, 672301],
+					"A13448": [0, 672351]
+				}
+			},
+			{
+				"name": "Abdullah Bin Yahya",
+				"7": {
+					"D13421": [671001, 0],
+					"D13422": [671051, 671059],
+					"D13423": [0, 671101],
+					"D13424": [0, 671151],
+					"D13425": [0, 671201],
+					"D13426": [0, 671251]
+				},
+				"10": {
+					"A13421": [671001, 0],
+					"A13422": [671051, 0],
+					"A13423": [671101, 0],
+					"A13424": [0, 671151],
+					"A13425": [0, 671201],
+					"A13426": [0, 671251]
+				},
+				"25": {
+					"C01408": ["070351", "070359"]
+				}
+			},
+			{
+				"name": "Murrshidi Bin Mansor",
+				"7": {
+					"D13449": [672401, 672426],
+					"D13450": [672451, 0],
+					"D13451": [672501, 0],
+					"D13452": [672551, 0],
+					"D13453": [672601, 0],
+					"D13454": [672651, 0],
+					"D13455": [672701, 0]
+				},
+				"10": {
+					"A13449": [672401, 0],
+					"A13450": [672451, 0],
+					"A13451": [672501, 672530],
+					"A13452": [0, 672551],
+					"A13453": [0, 672601],
+					"A13454": [0, 672651],
+					"A13455": [0, 672701]
+				},
+				"15": {
+					"B01413": ["070601", "070626"]
+				}
+			},
+			{
+				"name": "Sofian",
+				"7": {
+					"D13429": [0, 671401],
+					"D13430": [0, 671451],
+					"D13437": [671801, 0],
+					"D13438": [671851, 0],
+					"D13439": [671901, 0],
+					"D13440": [671951, 0],
+					"D13441": [672001, 0],
+					"D13442": [672051, 672083]
+				},
+				"10": {
+					"A13441": [672001, 672032],
+					"A13442": [0, 672051],
+					"A13437": [671801, 0],
+					"A13438": [671851, 0],
+					"A13439": [671901, 0],
+					"A13440": [671951, 0]
+				},
+				"15": {
+					"B01412": ["070551", 0]
+				}
+			}
+		]
+			;
+
+		const pdfPages = document.getElementById('pdf-pages');
+
+		// Format currency to 2 decimal places with comma
+		function formatCurrency(amount) {
+			return amount.toLocaleString('en-US', {
+				minimumFractionDigits: 2,
+				maximumFractionDigits: 2
+			});
+		}
+
+		// Pad number with zeros
+		function padNumber(num, size = 6) {
+			num = num.toString();
+			while (num.length < size) num = "0" + num;
+			return num;
+		}
+
+		// Setup amil dropdown
+		function setupAmilDropdown() {
+			const amilSelect = document.getElementById('amilName');
+			amilSelect.innerHTML = '<option value="">Pilih Amil</option>';
+
+			amilData.forEach((amil, index) => {
+				const option = document.createElement('option');
+				option.value = index;
+				option.textContent = amil.name;
+				amilSelect.appendChild(option);
+			});
+
+			amilSelect.addEventListener('change', processAmilData);
+		}
+
+		// Process amil data and create pages
+		function processAmilData() {
+			const amilSelect = document.getElementById('amilName');
+			pdfPages.innerHTML = ''; // Clear existing pages
+
+			if (amilSelect.value === '') return;
+
+			const selectedAmilIndex = parseInt(amilSelect.value);
+			const amil = amilData[selectedAmilIndex];
+
+			// Get all coupon types for this amil
+			const couponTypes = Object.keys(amil).filter(key => !isNaN(key));
+
+			// Create a page for each coupon type
+			for (const couponType of couponTypes) {
+				const container = document.createElement('div');
+				container.className = 'pdf-container';
+				container.id = `pdf-container-${couponType}`;
+
+				// Add name input
+				const nameInput = document.createElement('input');
+				nameInput.type = 'text';
+				nameInput.className = 'name_amil';
+				nameInput.value = amil.name;
+				nameInput.readOnly = true;
+
+				// Add marked image
+				const markedImg = document.createElement('img');
+				markedImg.src = 'marked.png';
+				markedImg.className = `marked marked-${couponType}`;
+
+				// Add overall amount label
+				const overallLabel = document.createElement('label');
+				overallLabel.id = `overall-${couponType}`;
+				overallLabel.className = 'overall';
+				overallLabel.textContent = '0.00';
+
+				// Create and populate table
+				const table = document.createElement('table');
+				let overall = 0;
+				const tableContent = Object.entries(amil[couponType]).map(([receiptNo, range], index) => {
+					const [start, end] = range;
+					const isStartZero = start === 0;
+					const isEndZero = end === 0;
+
+					const data = {
+						from: isStartZero ? '' : padNumber(start),
+						to: isStartZero ? '' : (isEndZero ? padNumber(start * 1 + 49) : padNumber(end)),
+						total: isStartZero ? '' : (isEndZero ? 50 : (end - start + 1)),
+						from1: isStartZero ? padNumber(end) : (isEndZero ? '' : padNumber(end * 1 + 1)),
+						to1: isStartZero ? padNumber(end * 1 + 49) : (isEndZero ? '' : padNumber((end * 1 + 1) + (49 - (end - start + 1)))),
+						total1: isStartZero ? 50 : (isEndZero ? '' : (50 - (end - start + 1)))
+					};
+
+					const amount = data.total ? data.total * parseInt(couponType) : 0;
+					overall += amount;
+
+					return `<tr>
+                        <td>${index + 1}</td>
+                        <td>${padNumber(receiptNo)}</td>
+                        <td>${data.from}</td>
+                        <td>${data.to}</td>
+                        <td>${data.total}</td>
+                        <td>${data.from1}</td>
+                        <td>${data.to1}</td>
+                        <td>${data.total1}</td>
+                        <td>${amount > 0 ? formatCurrency(amount) : ''}</td>
+                    </tr>`;
+				}).join('');
+
+				table.innerHTML = tableContent;
+				overallLabel.textContent = formatCurrency(overall);
+
+				container.appendChild(nameInput);
+				container.appendChild(markedImg);
+				container.appendChild(overallLabel);
+				container.appendChild(table);
+				pdfPages.appendChild(container);
+			}
+		}
+
+		function printPDF() {
+			window.print();
+		}
+
+		// Initialize
+		window.addEventListener('DOMContentLoaded', setupAmilDropdown);
+	</script>
+</body>
+
+</html>
